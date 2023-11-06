@@ -70,9 +70,8 @@ class Animal(models.Model):
         species = self.env["zoo.species"].search([])
         while len(animals_created) < size:
             # create enclosures and animals until size is reached
-            enclosure = self.env["zoo.enclosure"].search(
-                [("animal_count", "<", species.enclosure_capacity)], limit=1
-            )
+            enclosures = self.env["zoo.enclosure"].search([])
+            enclosure = enclosures.filtered(lambda e: e.animal_count < e.capacity)[:1]
             if not enclosure:
                 enclosure = Enclosure.create(
                     {
