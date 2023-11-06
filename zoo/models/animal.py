@@ -1,33 +1,35 @@
 # -*- coding: utf-8 -*-
+import logging
 import random
-
-from odoo import models, fields, api
 from datetime import timedelta
 
-import logging
+from odoo import api, fields, models
+
+from . import Enclosure, Zoo
+
 _logger = logging.getLogger(__name__)
 
 # order matters !
 ANIMAL_STATUS = [
-    ('fed', 'Fed'),
-    ('hungry', 'Hungry'),
-    ('starving', 'Starving'),
-    ('dead', 'Dead'),
+    ("fed", "Fed"),
+    ("hungry", "Hungry"),
+    ("starving", "Starving"),
+    ("dead", "Dead"),
 ]
 
 
 class Animal(models.Model):
-    _name = 'zoo.animal'
-    _description = 'Animal'
+    _name = "zoo.animal"
+    _description = "Animal"
 
     name = fields.Char(required=True)
-    species_id = fields.Many2one('zoo.species', 'Species', required=True)
-    enclosure_id = fields.Many2one('zoo.enclosure', 'Enclosure', required=True)
-    status = fields.Selection(ANIMAL_STATUS, compute='_compute_status', store=True)
+    species_id = fields.Many2one("zoo.species", "Species", required=True)
+    enclosure_id = fields.Many2one("zoo.enclosure", "Enclosure", required=True)
+    status = fields.Selection(ANIMAL_STATUS, compute="_compute_status", store=True)
     last_feeding_time = fields.Datetime(default=fields.Datetime.now(), required=True)
     next_feeding_time = fields.Datetime()
 
-    @api.depends('last_feeding_time')
+    @api.depends("last_feeding_time")
     def _compute_status(self):
         now = fields.Datetime.now()
         for animal in self:
@@ -35,7 +37,9 @@ class Animal(models.Model):
             if not species:
                 animal.status = ANIMAL_STATUS[-1][0]
                 continue
-            feeding_interval = timedelta(**{species.feeding_interval_type: species.feeding_interval_number})
+            feeding_interval = timedelta(
+                **{species.feeding_interval_type: species.feeding_interval_number}
+            )
             missed_feedings = int((now - animal.last_feeding_time) / feeding_interval)
             try:
                 animal.status = ANIMAL_STATUS[missed_feedings][0]
@@ -45,31 +49,52 @@ class Animal(models.Model):
     @property
     def _populate_sizes(self):
         return {
-            'small': 10,  # minimal representative set
-            'medium': 2000,  # average database load
-            'large': 300000, # maxi database load
+            "small": 10,  # minimal representative set
+            "medium": 2000,  # average database load
+            "large": 300000,  # maxi database load
         }
 
     def _populate(self, size):
-        """ Generate filled enclosures of all species until we've reached given size
-        """
+        """Generate filled enclosures of all species until we've reached given size"""
+
         def generate_name():
-            return (random.choice('BCDFGHJKLMNPQRSTVWZ') +
-                    random.choice('aeiou') +
-                    random.choice('bcdfghjklmnpqrstvwz'))
+            return (
+                random.choice("BCDFGHJKLMNPQRSTVWZ")
+                + random.choice("aeiou")
+                + random.choice("bcdfghjklmnpqrstvwz")
+            )
 
         size = self._populate_sizes[size]
         animals_created = self
-        zoo = self.env['zoo.zoo'].search([])[0]
-        species = self.env['zoo.species'].search([])
+        zoo = self.env["zoo.zoo"].search([])[0]
+        species = self.env["zoo.species"].search([])
         while len(animals_created) < size:
             # create enclosures and animals until size is reached
-            pass
+            enclosure = self.env["zoo.enclosure"].search(
+                [("animal_count", "<", species.enclosure_capacity)], limit=1
+            )
+            if not enclosure:
+                enclosure = Enclosure.create(
+                    {
+                        "name": generate_name(),
+                        "zoo_id": zoo.id,
+                        "species_id": species[0].id,
+                    }
+                )
+
+            animal = self.create(
+                {
+                    "name": generate_name(),
+                    "species_id": enclosure.species_id,
+                    "enclosure_id": enclosure.id,
+                }
+            )
+            self |= animal
 
         return animals_created
 
     def feed(self):
-        self.write({'last_feeding_time': fields.Datetime.now()})
+        self.write({"last_feeding_time": fields.Datetime.now()})
 
     @api.model
     def _cron_compute_status(self):
@@ -81,6 +106,5 @@ class Animal(models.Model):
 
     @api.model
     def _cron_feed_today(self):
-        """ Feed animals by prioritizing hungry animals
-        """
+        """Feed animals by prioritizing hungry animals"""
         pass
