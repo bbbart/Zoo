@@ -18,6 +18,4 @@ class Zoo(models.Model):
             zoo.total_caretaker_hours = zoo.caretaker_count * zoo.caretaker_work_hours
 
     def set_required_caretaker_count(self):
-        # so no animal dies of hunger (can be an overestimation)
-        for zoo in self:
-            pass
+        pass

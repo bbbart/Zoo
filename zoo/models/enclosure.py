@@ -17,10 +17,7 @@ class Enclosure(models.Model):
     @api.depends('name', 'capacity', 'animal_count')
     def _compute_name(self):
         for enclosure in self:
-            enclosure.name = "%s (%s/%s)" % (
-                enclosure.species_id.name,
-                enclosure.animal_count,
-                enclosure.capacity)
+            enclosure.name = f"{enclosure.species_id.name} ({enclosure.animal_count}/{enclosure.capacity})"
 
     @api.depends('animal_ids')
     def _compute_animal_count(self):
