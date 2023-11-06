@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 
-from . import Enclosure, Zoo
+from .enclosure import Enclosure
 
 _logger = logging.getLogger(__name__)
 
